@@ -136,10 +136,10 @@ municipios <- merge(municipios_fortificados, tabela_municipios, by = "id")
 
 # Gerando o plot
 ggplot(data = municipios, aes(x = long, y = lat)) +
-  scale_fill_gradient(low = "#FFCDD2", high = "#D32F2F", space = "Lab",
+  scale_fill_gradient(low = "#ffffff", high = "#D32F2F", space = "Lab",
                       na.value = "grey50", guide = "colourbar") +
   geom_polygon(data=municipios, aes(x=long, y=lat, group=group, fill = n)) +
-  geom_path(data=municipios, aes(x=long, y=lat, group=group), color='black', size=0.1) +
+  geom_path(data=municipios, aes(x=long, y=lat, group=group), color='black', size=0.5) +
   theme(axis.text.x=element_blank(),
         axis.text.y=element_blank(), axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
