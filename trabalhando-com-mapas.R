@@ -4,6 +4,12 @@ library(maptools) #Ler ESRI shapefiles
 library(RColorBrewer)
 library(ggplot2)
 library(dplyr)
+
+#install.packages("rgdal")
+#install.packages("raster")
+library(rgdal)
+library(raster)
+
 require("rgdal")
 require("plyr")
 # library(ggmap)
@@ -91,78 +97,62 @@ pal
 
 # PLOTAGEM DO MAPA DA PARAÍBA COM O NÚMERO DE CASOS POR MUNICÍPIO
 plot(result, col = pal)
-pts.PB <- getSpatialPolygonsLabelPoints(result[result$n >= 1,])
-text(pts.PB@coords, labels=result$n[result$n >= 1], cex = 1)
+pts.PB <- getSpatialPolygonsLabelPoints(result[result$n >= 1000,])
+text(pts.PB@coords, labels=result$n[result$n >= 1000], cex = 1)
 
 
-# GARBAGE
-# GARBAGE
-# GARBAGE
-# GARBAGE
-# GARBAGE
-# GARBAGE
-# GARBAGE
-# GARBAGE
-# GARBAGE
-plot(paraiba[paraiba$NM_MUNICIP=="JOÃO PESSOA",], add=T, col = "red")
-plot(paraiba[paraiba$NM_MUNICIP=="GUARABIRA",], add=T, col = alpha("green", 0.5))
-plot(paraiba[paraiba$NM_MUNICIP=="CONCEIÇÃO",], add=T, col = alpha("blue", 0.5))
-legend('topright', legend = levels(result$NM_MUNICIP), col = pal, cex = 0.5, pch = 10)
+paraiba.pts <- getSpatialPolygonsLabelPoints(result[result$n >= 0,])
+paraiba.pts <- result$n
+paraiba.pts <- as.data.frame(paraiba.pts)
+paraiba.pts[,3] <- result$n
 
 
 
-ggplot(data = result, aes(x = long, y = lat, group = group)) +
-  geom_polygon(colour = "black") +
-  coord_equal() +
-  theme()
+# Criando mapa com GGPLOT2
+casos_2016 <- read.csv("numero_casos_2016.csv")
+
+# Carregamos um shape auxíliar
+paraiba <- readShapePoly("./pb_municipios/25MUE250GC_SIR.shp")
+
+# Adicionado no mapa da paraíba a quantidade de casos
+result <- merge(paraiba, casos_2016)
+
+# Adicionamos 0 nos casos que possuem NA
+result$n[is.na(result$n)] <- runif(26, 0, 0)
+
+
+# Criamos uma tabela com o ID dos municipios em sequência para que possamos determinar
+# A quais municípios pertencem a quantidade de casos
+tabela_municipios <- data.frame(id = c(0:222), ID_MUNICIP = c(s@data$CD_GEOCMU), Nome = c(s@data$NM_MUNICIP))
+tabela_municipios$ID_MUNICIP <- as.numeric(substr(as.character(tabela_municipios$ID_MUNICIP), 1, 6))
+tabela_municipios <- merge(tabela_municipios, result, by = "ID_MUNICIP")
+
+# Carregamos outro shape em definitivo
+s <- shapefile("./pb_municipios/25MUE250GC_SIR.shp")
+municipios_fortificados <- fortify(s, by = "id")
+
+# Fazemos o merge da tabela com o shape
+municipios <- merge(municipios_fortificados, tabela_municipios, by = "id")
+
+# Gerando o plot
+ggplot(data = municipios, aes(x = long, y = lat)) +
+  scale_fill_gradient(low = "#FFCDD2", high = "#D32F2F", space = "Lab",
+                      na.value = "grey50", guide = "colourbar") +
+  geom_polygon(data=municipios, aes(x=long, y=lat, group=group, fill = n)) +
+  geom_path(data=municipios, aes(x=long, y=lat, group=group), color='black', size=0.1) +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank(), axis.ticks.x=element_blank(),
+        axis.ticks.y=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank()) +
+  xlab("") + ylab("") +
+  ggtitle("Dengue - Notificações por municípios da Paraíba em 2015") +
+  labs(fill = "Quantidade de casos")
 
 
 
 
-
-
-
-
-
-
-ggplot(data = result, aes(x= long, y = lat, group=group)) +
-  geom_polygon(data=result, aes(fill=pal)) +
-  geom_path(color='black', size=0.2) +
-  scale_fill_brewer(palette='PuRd')
-
-plot(result, col = result$n)
-legend('topright', legend = levels(result$NM_MUNICIP), col = 1:223, cex = 0.8, pch = 1)
-
-
-
-ggplot(data = result, aes(x=long, y=lat, group=group),
-             fill="white", color="#7f7f7f", size=0.25) +
-  geom_path(color='black', size=0.2) + coord_map() +
-  theme(plot.background = element_rect(fill = "transparent", colour = NA),
-                 panel.border = element_blank(),
-                 panel.background = element_rect(fill = "transparent", colour = NA),
-                 panel.grid = element_blank(),
-                 axis.text = element_blank(),
-                 axis.ticks = element_blank(),
-                 legend.position = "right") +
-  scale_fill_manual(values=colorRampPalette(brewer.pal(9, 'Reds'))(1), name="NM_MUNICIP")
-
-
-
-#########
-#casos_pb <- count(casos_dengue_2015, ID_MUNICIP, sort = TRUE)
-casos_pb <- dplyr::count(casos_dengue_2015, ID_MUNICIP, sort = TRUE)
-casos_pb$codigo <- casos_pb$ID_MUNICIP
-
-
-paraiba$codigo <- as.character(paraiba$CD_GEOCMU)
-paraiba$codigo <- substr(paraiba$codigo, 1, 6)
-
-paraiba$codigo <- as.numeric(paraiba$codigo)
-result <- merge(casos_pb, paraiba, by = "codigo")
-paraiba[result$codigo == 250970,]$NM_MUNICIP
-
-ggplot(data = result, aes(long, lat, group=group)) +
-  geom_path(color='black', size=0.2) +
-  scale_fill_brewer(palette='PuRd')
-
+# TOP EXAMPLE
+states <- map_data("state")
+sim_data <- data.frame(region=unique(states$region), Percent.Turnout=match(unique(states$region), unique(states$region)))
+sim_data_geo <- merge(states, sim_data, by="region")
+qplot(long, lat, data=sim_data_geo, geom="polygon", fill=Percent.Turnout, group=group)
